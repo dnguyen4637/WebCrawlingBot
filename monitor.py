@@ -279,9 +279,15 @@ def send_text_message(company, position, link, datetime_text):
 
 def send_startup_notification():
     """Send a Telegram message that the bot is starting a new scrape."""
-    send_telegram_message("🤖 Job Monitor bot started. Scanning for new intern postings...")
+    send_telegram_message("✅ Connected! Job Monitor bot is running. Scanning for new intern postings...")
 
 
 if __name__ == "__main__":
+    # Verify env vars are present before doing anything
+    token = os.getenv("TELEGRAM_TOKEN")
+    chat_id = os.getenv("CHAT_ID")
+    print(f"[ENV] TELEGRAM_TOKEN set: {bool(token)}")
+    print(f"[ENV] CHAT_ID set: {bool(chat_id)}")
+
     send_startup_notification()
     scrape_jobs()
