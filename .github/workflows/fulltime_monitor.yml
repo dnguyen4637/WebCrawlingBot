@@ -95,6 +95,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Commit + push
+          # Commit + push (rebase first to handle concurrent pushes)
           git commit -m "Update seen fulltime jobs"
+          git pull --rebase origin main
           git push
