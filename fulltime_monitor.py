@@ -85,11 +85,12 @@ JOB_GROUPS = {
 }
 
 # Titles must contain at least one of these to be considered full-time / entry-level
-ENTRY_LEVEL_KEYWORDS = ["new grad", "entry level", "associate", "university graduate", "junior"]
+ENTRY_LEVEL_KEYWORDS = ["new grad", "entry level", "university graduate", "class of 2026", "early career"]
 
 # Titles containing any of these are excluded
 EXCLUDE_KEYWORDS = [
     "intern", "internship", "co-op",
+    "junior", "associate", "experienced",
     "senior", "staff", "principal", "lead",
     "firmware", "embedded", "hardware", "kernel", "circuit", "fpga",
 ]
@@ -132,7 +133,7 @@ def scrape_jobs():
     # Search for entry-level / new grad full-time roles posted in the last 24 h
     url = (
         "https://www.linkedin.com/jobs/search"
-        "?keywords=New+Grad+OR+Entry+Level+OR+Junior"
+        "?keywords=New+Grad+OR+University+Graduate+OR+Entry+Level"
         "&location=United+States"
         "&geoId=103644278"
         "&f_TPR=r86400"
