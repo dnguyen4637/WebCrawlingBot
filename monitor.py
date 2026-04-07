@@ -248,5 +248,31 @@ def send_text_message(company, position, link, datetime_text):
         print(f"Error: Unexpected error in send_text_message: {e}")
         return {"ok": False, "error": f"Unexpected error: {str(e)}"}
 
+def send_startup_notification():
+    """Send a Telegram message confirming the workflow is up and running."""
+    token = os.getenv("TELEGRAM_TOKEN")
+    chat_id = os.getenv("CHAT_ID")
+
+    if not token or not chat_id:
+        print("Startup notification skipped: missing TELEGRAM_TOKEN or CHAT_ID")
+        return
+
+    message = "✅ Job Monitor workflow is up and running! Scraping for new intern postings now..."
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        params = {"chat_id": chat_id, "text": message}
+        response = requests.post(url, params=params, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        if result.get("ok"):
+            print("Startup notification sent successfully.")
+        else:
+            print(f"Startup notification failed: {result.get('description', 'Unknown error')}")
+    except Exception as e:
+        print(f"Error sending startup notification: {e}")
+
+
 if __name__ == "__main__":
+    send_startup_notification()
     scrape_jobs()
