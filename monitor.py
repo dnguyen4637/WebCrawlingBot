@@ -105,6 +105,7 @@ def scrape_jobs():
     service = Service(executable_path=chromedriver_bin) if chromedriver_bin else Service()
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
+    new_jobs_count = 0
 
     try:
         driver.get(url)
@@ -173,15 +174,43 @@ def scrape_jobs():
 
             # Send alert
             send_text_message(company, title, link, posted_text)
-            
+            new_jobs_count += 1
 
-            # Safety cap so you don’t spam yourself if parsing changes
-            
+    except Exception as e:
+        send_telegram_message(f"⚠️ Bot error during scraping:\n{e}")
+        raise
 
     finally:
         driver.quit()
         # persist seen jobs for next run
         save_seen_jobs(seenJobs)
+
+    # Send summary to Telegram after scraping completes
+    if new_jobs_count > 0:
+        send_telegram_message(f"✅ Done! Found {new_jobs_count} new intern posting(s) this run.")
+    else:
+        send_telegram_message("🔍 Done scraping. No new intern postings found this run.")
+
+def send_telegram_message(text: str) -> None:
+    """Send a plain text message to the configured Telegram chat."""
+    token = os.getenv("TELEGRAM_TOKEN")
+    chat_id = os.getenv("CHAT_ID")
+
+    if not token or not chat_id:
+        print("send_telegram_message skipped: missing TELEGRAM_TOKEN or CHAT_ID")
+        return
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        params = {"chat_id": chat_id, "text": text}
+        response = requests.post(url, params=params, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        if not result.get("ok"):
+            print(f"Telegram API error: {result.get('description', 'Unknown error')}")
+    except Exception as e:
+        print(f"Error sending Telegram message: {e}")
+
 
 def send_text_message(company, position, link, datetime_text):
     try:
@@ -249,28 +278,8 @@ def send_text_message(company, position, link, datetime_text):
         return {"ok": False, "error": f"Unexpected error: {str(e)}"}
 
 def send_startup_notification():
-    """Send a Telegram message confirming the workflow is up and running."""
-    token = os.getenv("TELEGRAM_TOKEN")
-    chat_id = os.getenv("CHAT_ID")
-
-    if not token or not chat_id:
-        print("Startup notification skipped: missing TELEGRAM_TOKEN or CHAT_ID")
-        return
-
-    message = "✅ Job Monitor workflow is up and running! Scraping for new intern postings now..."
-
-    try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        params = {"chat_id": chat_id, "text": message}
-        response = requests.post(url, params=params, timeout=10)
-        response.raise_for_status()
-        result = response.json()
-        if result.get("ok"):
-            print("Startup notification sent successfully.")
-        else:
-            print(f"Startup notification failed: {result.get('description', 'Unknown error')}")
-    except Exception as e:
-        print(f"Error sending startup notification: {e}")
+    """Send a Telegram message that the bot is starting a new scrape."""
+    send_telegram_message("🤖 Job Monitor bot started. Scanning for new intern postings...")
 
 
 if __name__ == "__main__":
