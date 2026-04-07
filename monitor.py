@@ -76,6 +76,38 @@ def small_jitter_sleep(min_s=5, max_s=45):
     """Avoid hitting the site at exact clock boundaries."""
     time.sleep(random.randint(min_s, max_s))
 
+
+# ----------------------------
+# Job classification config
+# ----------------------------
+JOB_GROUPS = {
+    "ML/AI": ["Machine Learning", "AI", "Computer Vision", "LLM", "NLP", "Applied Scientist"],
+    "Data/Infra": ["Data Scientist", "Data Engineer", "MLOps", "Database"],
+    "Software/Networks": ["Software Engineer", "iOS", "SwiftUI", "Network Engineer", "Security Analyst"],
+    "Emerging": ["AI Agent", "Robotics", "Automation"],
+}
+
+INTERN_KEYWORDS = ["intern", "internship", "co-op"]
+
+EXCLUDE_KEYWORDS = [
+    "senior", "staff", "principal", "lead", "firmware",
+    "embedded", "hardware", "kernel", "fpga",
+]
+
+
+def classify_title(title: str) -> str | None:
+    """
+    Return the job group label if the title matches a group keyword,
+    or None if it doesn't match any group.
+    Matching is case-insensitive.
+    """
+    title_lower = title.lower()
+    for group, keywords in JOB_GROUPS.items():
+        for kw in keywords:
+            if kw.lower() in title_lower:
+                return group
+    return None
+
 # Pull persisted seen jobs (global in-memory set)
 seenJobs = load_seen_jobs()
 
@@ -83,7 +115,7 @@ def scrape_jobs():
     # jitter so schedule doesn't look perfectly robotic
     small_jitter_sleep()
 
-    url = "https://www.linkedin.com/jobs/search?keywords=Software+Engineer+Intern&location=United+States&geoId=103644278&f_TPR=r86400"
+    url = "https://www.linkedin.com/jobs/search?keywords=Intern&location=United+States&geoId=103644278&f_TPR=r86400"
 
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")  # better for newer chrome
@@ -163,17 +195,29 @@ def scrape_jobs():
             if key in seenJobs:
                 continue
 
-            # Optional: light filter — only alert if "Intern" in title (you mentioned this)
-            if title and "intern" not in title.lower():
-                # still mark as seen to reduce re-processing noise
+            title_lower = title.lower() if title else ""
+
+            # Must contain an intern keyword
+            if not any(kw in title_lower for kw in INTERN_KEYWORDS):
+                seenJobs.add(key)
+                continue
+
+            # Exclude senior / non-student roles
+            if any(kw in title_lower for kw in EXCLUDE_KEYWORDS):
+                seenJobs.add(key)
+                continue
+
+            # Must match a high-level job group
+            category = classify_title(title) if title else None
+            if not category:
                 seenJobs.add(key)
                 continue
 
             # Mark as seen BEFORE sending (idempotency)
             seenJobs.add(key)
 
-            # Send alert
-            send_text_message(company, title, link, posted_text)
+            # Send alert with category tag
+            send_text_message(company, title, link, posted_text, category)
             new_jobs_count += 1
 
     except Exception as e:
@@ -212,15 +256,16 @@ def send_telegram_message(text: str) -> None:
         print(f"Error sending Telegram message: {e}")
 
 
-def send_text_message(company, position, link, datetime_text):
+def send_text_message(company, position, link, datetime_text, category="Match"):
     try:
         company = company or "(unknown company)"
         position = position or "(unknown title)"
         link = link or "(no link)"
         datetime_text = datetime_text or "(unknown time)"
 
+        tag = f"[{category} Intern Match]"
         textMessage = (
-            f"New job posted:\n"
+            f"<b>{tag}</b>\n"
             f"{position} @ {company}\n"
             f"{link}\n"
             f"Posted: {datetime_text}"
@@ -238,7 +283,12 @@ def send_text_message(company, position, link, datetime_text):
             return {"ok": False, "error": "Missing CHAT_ID"}
 
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        params = {"chat_id": chat_id, "text": textMessage, "disable_web_page_preview": False}
+        params = {
+            "chat_id": chat_id,
+            "text": textMessage,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False,
+        }
 
         response = requests.post(url, params=params, timeout=10)
         response.raise_for_status()
