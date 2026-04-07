@@ -1,0 +1,100 @@
+name: Full-Time Job Monitor
+
+on:
+  schedule:
+    - cron: "0 14 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-fulltime-monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Install Chrome + ChromeDriver (matched versions)
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          install-chromedriver: true
+
+      # Export paths so Selenium uses the correct binaries
+      - name: Export Chrome paths
+        run: |
+          echo "CHROME_BIN=$(which chrome)" >> $GITHUB_ENV
+          echo "CHROMEDRIVER_BIN=$(which chromedriver)" >> $GITHUB_ENV
+
+      # Verify install
+      - name: Verify Chrome
+        run: |
+          chrome --version
+          chromedriver --version
+
+      # Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium beautifulsoup4 requests
+
+      # Run scraper
+      - name: Run full-time job monitor
+        timeout-minutes: 10
+        env:
+          FULLTIME_TELEGRAM_TOKEN: ${{ secrets.FULLTIME_TELEGRAM_TOKEN }}
+          FULLTIME_CHAT_ID: ${{ secrets.FULLTIME_CHAT_ID }}
+        run: |
+          python fulltime_monitor.py
+
+      # Commit updated state file
+      - name: Commit state
+        run: |
+          echo "===== DEBUG: Checking state file ====="
+
+          # List state directory
+          echo "Listing state/ directory:"
+          ls -la state || echo "state/ directory does not exist"
+
+          # Check if file exists
+          if [ -f state/seen_fulltime.json ]; then
+            echo "state/seen_fulltime.json EXISTS"
+            echo "File contents:"
+            cat state/seen_fulltime.json
+          else
+            echo "state/seen_fulltime.json DOES NOT EXIST"
+          fi
+
+          echo "===== DEBUG: Git status ====="
+          git status --porcelain
+
+          echo "===== DEBUG: Attempting commit ====="
+
+          # Stage file if it exists
+          if [ -f state/seen_fulltime.json ]; then
+            git add state/seen_fulltime.json
+          fi
+
+          # Check if anything is staged
+          if git diff --cached --quiet; then
+            echo "No changes staged. Nothing to commit."
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit + push
+          git commit -m "Update seen fulltime jobs"
+          git push
