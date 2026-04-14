@@ -115,7 +115,7 @@ def scrape_jobs():
     # jitter so schedule doesn't look perfectly robotic
     small_jitter_sleep()
 
-    url = "https://www.linkedin.com/jobs/search?keywords=Intern&location=United+States&geoId=103644278&f_TPR=r86400"
+    url = "https://www.linkedin.com/jobs/search?keywords=Fall+2026+Intern&location=United+States&geoId=103644278&f_TPR=r86400"
 
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")  # better for newer chrome
