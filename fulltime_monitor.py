@@ -85,7 +85,7 @@ JOB_GROUPS = {
 }
 
 # Titles must contain at least one of these to be considered full-time / entry-level
-ENTRY_LEVEL_KEYWORDS = ["new grad", "entry level", "university graduate", "class of 2026", "early career"]
+ENTRY_LEVEL_KEYWORDS = ["new grad", "entry level", "university graduate", "early career"]
 
 # Titles containing any of these are excluded
 EXCLUDE_KEYWORDS = [
